@@ -1,4 +1,8 @@
+from PIL import Image
 
+# Cargar y mostrar el logo
+logo = Image.open("logo.png")
+st.image(logo, width=200)
 import streamlit as st
 import pandas as pd
 import statsmodels.api as sm
