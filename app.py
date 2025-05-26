@@ -1,5 +1,12 @@
 
 import streamlit as st
+import pandas as pd
+import numpy as np
+from PIL import Image
+# Otras importaciones necesarias
+
+# Configuración de la página
+st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
 def check_password():
     def password_entered():
@@ -19,7 +26,6 @@ def check_password():
     else:
         return True
 
-from PIL import Image
 
 # Cargar y mostrar el logo
 logo = Image.open("Logo-Natgas.png")
