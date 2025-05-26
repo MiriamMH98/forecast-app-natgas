@@ -22,7 +22,7 @@ def check_password():
 from PIL import Image
 
 # Cargar y mostrar el logo
-logo = Image.open("logo.png")
+logo = Image.open("Logo-Natgas.png")
 st.image(logo, width=200)
 import streamlit as st
 import pandas as pd
