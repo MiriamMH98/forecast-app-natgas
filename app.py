@@ -1,11 +1,16 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+from io import BytesIO
 from PIL import Image
 # Otras importaciones necesarias
 
 # Configuración de la página
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
+
 
 def check_password():
     def password_entered():
@@ -35,7 +40,6 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
 cuentas_clave = [
     "6454007009 BONO COMERCIAL",
