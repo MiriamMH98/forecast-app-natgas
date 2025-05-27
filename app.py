@@ -9,7 +9,7 @@ from PIL import Image
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
 # Mostrar logo
-logo = Image.open("logo.png")
+logo = Image.open("Logo-Natgas.png")
 st.image(logo, width=200)
 
 meses_es_en = {
