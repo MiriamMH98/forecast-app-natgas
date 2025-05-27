@@ -34,20 +34,7 @@ def check_password():
 # Cargar y mostrar el logo
 logo = Image.open("Logo-Natgas.png")
 st.image(logo, width=200)
-import streamlit as st
-import pandas as pd
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
-from io import BytesIO
 
-
-cuentas_clave = [
-    "6454007009 BONO COMERCIAL",
-    "6454004007 EVENTOS COMERCIALES",
-    "6454004006 ARTICULOS PROMOCIONALES",
-    "6454002004 SERVICIOS ADICIONALES TALLERES ALIADOS",
-    "6454001002 UNIFORMES VENTA"
-]
 
 meses_es_en = {
     "ene": "Jan", "feb": "Feb", "mar": "Mar", "abr": "Apr",
@@ -66,8 +53,6 @@ def leer_archivo_excel(uploaded_file, anio):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
-        if cuenta not in cuentas_clave:
-            continue
         for mes in meses_es_en:
             if ("Real", mes) in df.columns:
                 valor = row[("Real", mes)]
@@ -86,8 +71,6 @@ def leer_presupuesto(uploaded_file):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
-        if cuenta not in cuentas_clave:
-            continue
         for mes in meses_es_en:
             if ("Presupuesto", mes) in df.columns:
                 valor = row[("Presupuesto", mes)]
@@ -156,6 +139,10 @@ if file_2022 and file_2023 and file_2024 and file_2025:
 
     df_presupuesto = leer_presupuesto(file_2025)
 
+    bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
+    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
+        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+
     resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
     resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
     resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
@@ -164,7 +151,8 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     st.success("Análisis generado correctamente ✅")
     st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
 
-    cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_clave)
+    cuentas_disponibles = df_hist["Cuenta"].unique()
+    cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_disponibles)
     df_plot = df_hist[df_hist["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
     df_fore = resumen[resumen["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
 
@@ -175,3 +163,9 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     ax.set_title(f"{cuenta_sel}")
     ax.legend()
     st.pyplot(fig)
+"""
+
+# Guardar el archivo
+archivo_script = "/mnt/data/app_forecast_todas_cuentas.py"
+Path(archivo_script).write_text(script_modificado)
+archivo_script
