@@ -6,6 +6,8 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from io import BytesIO
 from PIL import Image
+from pathlib import Path
+
 # Otras importaciones necesarias
 
 # Configuración de la página
@@ -163,7 +165,7 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     ax.set_title(f"{cuenta_sel}")
     ax.legend()
     st.pyplot(fig)
-"""
+
 
 # Guardar el archivo
 archivo_script = "/mnt/data/app_forecast_todas_cuentas.py"
