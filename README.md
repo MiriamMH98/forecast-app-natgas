@@ -47,4 +47,4 @@ streamlit run app.py
 
 ## 🧑‍💻 Contacto
 
-Desarrollado con ❤️ para el equipo de análisis financiero de NATGAS.
+Desarrollado con ❤️ para el equipo de análisis comercial de NATGAS.
