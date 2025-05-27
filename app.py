@@ -1,42 +1,16 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from io import BytesIO
 from PIL import Image
-from pathlib import Path
 
-# Otras importaciones necesarias
-
-# Configuración de la página
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
-
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["auth"]["password"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input("Contraseña", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Contraseña", type="password", on_change=password_entered, key="password")
-        st.error("🔒 Contraseña incorrecta")
-        return False
-    else:
-        return True
-
-
-# Cargar y mostrar el logo
-logo = Image.open("Logo-Natgas.png")
+# Mostrar logo
+logo = Image.open("logo.png")
 st.image(logo, width=200)
-
 
 meses_es_en = {
     "ene": "Jan", "feb": "Feb", "mar": "Mar", "abr": "Apr",
@@ -142,8 +116,7 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     df_presupuesto = leer_presupuesto(file_2025)
 
     bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
-    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
-        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] =         df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
     resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
     resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
@@ -165,9 +138,3 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     ax.set_title(f"{cuenta_sel}")
     ax.legend()
     st.pyplot(fig)
-
-
-# Guardar el archivo
-archivo_script = "/mnt/data/app_forecast_todas_cuentas.py"
-Path(archivo_script).write_text(script_modificado)
-archivo_script
