@@ -55,11 +55,10 @@ meses_es_en = {
     "sep": "Sep", "oct": "Oct", "nov": "Nov", "dic": "Dec"
 }
 
-
 def leer_archivo_excel(uploaded_file, anio):
     encabezados = pd.read_excel(uploaded_file, nrows=8, header=None)
-    tipos = encabezados.iloc[6].fillna(method='ffill')
-    meses = encabezados.iloc[7].fillna(method='ffill')
+    tipos = encabezados.iloc[6].ffill()
+    meses = encabezados.iloc[7].ffill()
     columnas_multi = list(zip(tipos, meses))
     df = pd.read_excel(uploaded_file, skiprows=8, header=None)
     df.columns = columnas_multi
@@ -78,8 +77,8 @@ def leer_archivo_excel(uploaded_file, anio):
 
 def leer_presupuesto(uploaded_file):
     encabezados = pd.read_excel(uploaded_file, nrows=8, header=None)
-    tipos = encabezados.iloc[6].fillna(method='ffill')
-    meses = encabezados.iloc[7].fillna(method='ffill')
+    tipos = encabezados.iloc[6].ffill()
+    meses = encabezados.iloc[7].ffill()
     columnas_multi = list(zip(tipos, meses))
     df = pd.read_excel(uploaded_file, skiprows=8, header=None)
     df.columns = columnas_multi
@@ -96,7 +95,7 @@ def leer_presupuesto(uploaded_file):
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Presupuesto": valor})
     return pd.DataFrame(datos)
 
-def forecast_sarima(df, pasos_forecast, fecha_inicio_forecast):
+def forecast_sarima(df, n_meses, fecha_inicio):
     resultados = []
     for cuenta, datos in df.groupby("Cuenta"):
         ts = datos.set_index("Fecha").sort_index()["Real"].asfreq("MS").fillna(0)
@@ -104,16 +103,16 @@ def forecast_sarima(df, pasos_forecast, fecha_inicio_forecast):
             modelo = sm.tsa.statespace.SARIMAX(ts, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12),
                                                enforce_stationarity=False, enforce_invertibility=False)
             modelo_entrenado = modelo.fit(disp=False)
-            pred = modelo_entrenado.get_forecast(steps=pasos_forecast)
+            pred = modelo_entrenado.get_forecast(steps=n_meses)
             pred_df = pred.predicted_mean.reset_index(drop=True)
-            pred_df = pd.DataFrame({
-                "Fecha": pd.date_range(start=fecha_inicio_forecast, periods=pasos_forecast, freq="MS"),
-                "Forecast": pred_df.values,
-                "Cuenta": cuenta
-            })
+            pred_df["Fecha"] = pd.date_range(start=fecha_inicio + pd.offsets.MonthBegin(1), periods=n_meses, freq="MS")
+            pred_df["Cuenta"] = cuenta
+            pred_df.rename(columns={0: "Forecast"}, inplace=True)
             resultados.append(pred_df)
         except:
             continue
+    if not resultados:
+        return pd.DataFrame()
     return pd.concat(resultados)
 
 def clasificar_alerta(row, tolerancia=0.3):
@@ -154,21 +153,19 @@ if file_2022 and file_2023 and file_2024 and file_2025:
         leer_archivo_excel(file_2024, 2024)
     ])
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
-    df_hist = df_hist[df_hist["Fecha"] <= "2025-04-30"]
 
     ultima_fecha_real = df_hist["Fecha"].max()
     pasos_forecast = 12 - ultima_fecha_real.month
     st.info(f"Última fecha real: {ultima_fecha_real.strftime('%B %Y')}. Se generará forecast para los próximos {pasos_forecast} meses.")
-    
-    df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real + pd.offsets.MonthBegin(1))
+
+    if pasos_forecast <= 0:
+        st.warning("🚫 No hay meses futuros disponibles para predecir.")
+        st.stop()
+
+    df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real)
     df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
 
     df_presupuesto = leer_presupuesto(file_2025)
-
-    # Ajuste específico para Bono Comercial
-    bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
-    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
-        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
     resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
     resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
