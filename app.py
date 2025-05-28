@@ -161,44 +161,35 @@ if file_2022 and file_2023 and file_2024 and file_2025:
         bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
         df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] =             df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
-        resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
-        resumen = resumen.merge(
-            df_hist.groupby(["Cuenta", "Fecha"])["Real"].sum().reset_index(),
-            on=["Cuenta", "Fecha"],
-            how="left"
-        )
-        resumen = resumen.merge(
-            df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}),
-            on="Cuenta",
-            how="left"
-        )
-        resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
-        resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
-        resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
+        
 
-        st.success("Análisis generado correctamente ✅")
-        st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
+resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
+resumen = resumen.merge(
+    df_hist.groupby(["Cuenta", "Fecha"])["Real"].sum().reset_index(),
+    on=["Cuenta", "Fecha"],
+    how="left"
+)
+resumen = resumen.merge(
+    df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}),
+    on="Cuenta",
+    how="left"
+)
+resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
+resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
+resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
 
-        cuentas_disponibles = df_hist["Cuenta"].unique()
-        cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_disponibles)
-        df_plot = df_hist[df_hist["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
-        df_fore = resumen[resumen["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
+st.success("Análisis generado correctamente ✅")
+st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
 
-        fig, ax = plt.subplots(figsize=(10, 4))
-        df_plot["Real"].plot(ax=ax, label="Histórico", marker='o')
-        df_fore["Forecast"].plot(ax=ax, label="Forecast 2025", marker='o')
-        df_fore["Presupuesto"].plot(ax=ax, label="Presupuesto 2025", linestyle='--')
-        ax.set_title(f"{cuenta_sel}")
-        ax.legend()
-        st.pyplot(fig)
-""")
+cuentas_disponibles = df_hist["Cuenta"].unique()
+cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_disponibles)
+df_plot = df_hist[df_hist["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
+df_fore = resumen[resumen["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
 
-# Localizar y reemplazar todo el bloque anterior del resumen
-inicio = contenido.find("resumen = pd.merge(")
-fin = contenido.find("st.pyplot(fig)") + len("st.pyplot(fig)\n")
-
-nuevo_contenido = contenido[:inicio] + bloque_corregido + contenido[fin:]
-
-# Guardar el archivo corregido
-Path(ruta_script).write_text(nuevo_contenido)
-ruta_script
+fig, ax = plt.subplots(figsize=(10, 4))
+df_plot["Real"].plot(ax=ax, label="Histórico", marker='o')
+df_fore["Forecast"].plot(ax=ax, label="Forecast 2025", marker='o')
+df_fore["Presupuesto"].plot(ax=ax, label="Presupuesto 2025", linestyle='--')
+ax.set_title(f"{cuenta_sel}")
+ax.legend()
+st.pyplot(fig)
