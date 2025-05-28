@@ -176,8 +176,8 @@ resumen = resumen.merge(
 resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
 resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
 resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
-
-        resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
+    resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
+    resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
 
     st.success("Análisis generado correctamente ✅")
         st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
