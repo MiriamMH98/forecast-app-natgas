@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import statsmodels.api as sm
@@ -9,8 +8,51 @@ from PIL import Image
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
 # Mostrar logo
-logo = Image.open("Logo-Natgas.png")
-st.image(logo, width=200)
+try:
+    logo = Image.open("Logo-Natgas.png")
+    st.image(logo, width=200)
+except:
+    st.write("")
+
+cuentas_filtradas = [
+    '6454001001 SERVICIOS DE PERSONAL VENTA/MKT',
+    '6454001002 UNIFORMES VENTA',
+    '6454001003 CURSOS Y CAPACITACION VENTA',
+    '6454001004 ADMINISTRACION DE VIATICOS VENTA',
+    '6454001005 ASESORIAS PROFESIONALES VENTA',
+    '6454001007 COMISIONES FUERZA DE VENTA INTERNA',
+    '6454001008 ADMINISTRACION APOYO MOVILIDAD',
+    '6454001009 INCENTIVOS COMERCIALES EN ESPECIE',
+    '6454001099 OTROS GASTOS DE PERSONAL VENTA',
+    '6454002001 BONOS Y DESCUENTOS TALLERES DE CONVESION',
+    '6454002002 COMISIONES FUERZA DE VENTA EXTERNA',
+    '6454002003 INCENTIVOS ASESORES FUERZA EXTERNA',
+    '6454002004 SERVICIOS ADICIONALES TALLERES ALIADOS',
+    '6454002005 BONOS TODOS SOMOS VENTAS',
+    '6454003001 PUBLICIDAD COMERCIAL Y SERVICIO AL CLIENTE',
+    '6454003002 TRANSPORTE VENTA',
+    '6454003003 TELEFONIA VENTA',
+    '6454003004 PAPELERIA / CONSUMIBLES VENTA',
+    '6454003006 SISTEMAS &  PQR',
+    '6454003009 MENSAJERIA Y PAQUETERIA VENTAS',
+    '6454004006 ARTICULOS PROMOCIONALES',
+    '6454004007 EVENTOS COMERCIALES',
+    '6454004009 REFERIDOS',
+    '6454005001 VIATICOS / HOSPEDAJE VENTA',
+    '6454005002 VIATICOS / CONSUMOS VENTA',
+    '6454006004 APOYO DE MOVILIDAD POR GESTION COMERCIAL',
+    '6454007009 BONO COMERCIAL',
+    '6454007031 CURSOS Y CAPACITACIONES',
+    '6454007033 ALIMENTOS',
+    '6454007034 BOLETOS DE AUTOBUS',
+    '6454007035 HOSPEDAJE',
+    '6454007036 COMBUSTIBLES Y LUBRICANTES',
+    '6454007038 BOLETOS DE AVION',
+    '6454007039 TAXIS Y TRANSPORTES FORANEOS',
+    '6454007041 PEAJES/CASETAS',
+    '6454007042 COMPENSACION PRIMA VACACIONAL',
+    '6454008099 OTROS GASTOS DE VENTA'
+]
 
 meses_es_en = {
     "ene": "Jan", "feb": "Feb", "mar": "Mar", "abr": "Apr",
@@ -29,6 +71,8 @@ def leer_archivo_excel(uploaded_file, anio):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
+        if cuenta not in cuentas_filtradas:
+            continue
         for mes in meses_es_en:
             if ("Real", mes) in df.columns:
                 valor = row[("Real", mes)]
@@ -47,6 +91,8 @@ def leer_presupuesto(uploaded_file):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
+        if cuenta not in cuentas_filtradas:
+            continue
         for mes in meses_es_en:
             if ("Presupuesto", mes) in df.columns:
                 valor = row[("Presupuesto", mes)]
@@ -109,6 +155,7 @@ if file_2022 and file_2023 and file_2024 and file_2025:
         leer_archivo_excel(file_2024, 2024)
     ])
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
+    df_hist = df_hist[df_hist["Fecha"] <= "2025-04-30"]
 
     df_forecast = forecast_sarima(df_hist)
     df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
