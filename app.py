@@ -1,4 +1,4 @@
-mport streamlit as st
+import streamlit as st
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
@@ -7,7 +7,6 @@ from PIL import Image
 
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
-# Mostrar logo
 try:
     logo = Image.open("Logo-Natgas.png")
     st.image(logo, width=200)
@@ -15,38 +14,20 @@ except:
     st.write("")
 
 cuentas_permitidas = [
-    '6454001002 UNIFORMES VENTA',
-    '6454001003 CURSOS Y CAPACITACION VENTA',
-    '6454001004 ADMINISTRACION DE VIATICOS VENTA',
-    '6454001005 ASESORIAS PROFESIONALES VENTA',
-    '6454001007 COMISIONES FUERZA DE VENTA INTERNA',
-    '6454001009 INCENTIVOS COMERCIALES EN ESPECIE',
-    '6454001099 OTROS GASTOS DE PERSONAL VENTA',
-    '6454002001 BONOS Y DESCUENTOS TALLERES DE CONVESION',
-    '6454002002 COMISIONES FUERZA DE VENTA EXTERNA',
-    '6454002003 INCENTIVOS ASESORES FUERZA EXTERNA',
-    '6454002004 SERVICIOS ADICIONALES TALLERES ALIADOS',
-    '6454002005 BONOS TODOS SOMOS VENTAS',
-    '6454003001 PUBLICIDAD COMERCIAL Y SERVICIO AL CLIENTE',
-    '6454003002 TRANSPORTE VENTA',
-    '6454003003 TELEFONIA VENTA',
-    '6454003004 PAPELERIA / CONSUMIBLES VENTA',
-    '6454003006 SISTEMAS &  PQR',
-    '6454003009 MENSAJERIA Y PAQUETERIA VENTAS',
-    '6454004006 ARTICULOS PROMOCIONALES',
-    '6454004007 EVENTOS COMERCIALES',
-    '6454004009 REFERIDOS',
-    '6454006004 APOYO DE MOVILIDAD POR GESTION COMERCIAL',
-    '6454007009 BONO COMERCIAL',
-    '6454007031 CURSOS Y CAPACITACIONES',
-    '6454007033 ALIMENTOS',
-    '6454007034 BOLETOS DE AUTOBUS',
-    '6454007035 HOSPEDAJE',
-    '6454007036 COMBUSTIBLES Y LUBRICANTES',
-    '6454007038 BOLETOS DE AVION',
-    '6454007039 TAXIS Y TRANSPORTES FORANEOS',
-    '6454007041 PEAJES/CASETAS',
-    '6454008099 OTROS GASTOS DE VENTA'
+    '6454001002 UNIFORMES VENTA', '6454001003 CURSOS Y CAPACITACION VENTA',
+    '6454001004 ADMINISTRACION DE VIATICOS VENTA', '6454001005 ASESORIAS PROFESIONALES VENTA',
+    '6454001007 COMISIONES FUERZA DE VENTA INTERNA', '6454001009 INCENTIVOS COMERCIALES EN ESPECIE',
+    '6454001099 OTROS GASTOS DE PERSONAL VENTA', '6454002001 BONOS Y DESCUENTOS TALLERES DE CONVESION',
+    '6454002002 COMISIONES FUERZA DE VENTA EXTERNA', '6454002003 INCENTIVOS ASESORES FUERZA EXTERNA',
+    '6454002004 SERVICIOS ADICIONALES TALLERES ALIADOS', '6454002005 BONOS TODOS SOMOS VENTAS',
+    '6454003001 PUBLICIDAD COMERCIAL Y SERVICIO AL CLIENTE', '6454003002 TRANSPORTE VENTA',
+    '6454003003 TELEFONIA VENTA', '6454003004 PAPELERIA / CONSUMIBLES VENTA',
+    '6454003006 SISTEMAS &  PQR', '6454003009 MENSAJERIA Y PAQUETERIA VENTAS',
+    '6454004006 ARTICULOS PROMOCIONALES', '6454004007 EVENTOS COMERCIALES', '6454004009 REFERIDOS',
+    '6454006004 APOYO DE MOVILIDAD POR GESTION COMERCIAL', '6454007009 BONO COMERCIAL',
+    '6454007031 CURSOS Y CAPACITACIONES', '6454007033 ALIMENTOS', '6454007034 BOLETOS DE AUTOBUS',
+    '6454007035 HOSPEDAJE', '6454007036 COMBUSTIBLES Y LUBRICANTES', '6454007038 BOLETOS DE AVION',
+    '6454007039 TAXIS Y TRANSPORTES FORANEOS', '6454007041 PEAJES/CASETAS', '6454008099 OTROS GASTOS DE VENTA'
 ]
 
 meses_es_en = {
@@ -139,13 +120,14 @@ with col2:
 with col3:
     file_2024 = st.file_uploader("Histórico 2024", type="xlsx")
 with col4:
-    file_2025 = st.file_uploader("Presupuesto 2025", type="xlsx")
+    file_2025 = st.file_uploader("Presupuesto y Reales 2025", type="xlsx")
 
 if file_2022 and file_2023 and file_2024 and file_2025:
     df_hist = pd.concat([
         leer_archivo_excel(file_2022, 2022),
         leer_archivo_excel(file_2023, 2023),
-        leer_archivo_excel(file_2024, 2024)
+        leer_archivo_excel(file_2024, 2024),
+        leer_archivo_excel(file_2025, 2025)
     ])
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
     ultima_fecha_real = df_hist[df_hist["Real"] > 0]["Fecha"].max()
@@ -155,24 +137,16 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     if pasos_forecast > 0:
         df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real)
         df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
-
         df_presupuesto = leer_presupuesto(file_2025)
+
         bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
-        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] =             df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
         resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
-        resumen = resumen.merge(
-            df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}),
-            on="Cuenta", how="left"
-        )
-
-        # Extraer datos reales de 2025 para hacer merge
-        df_reales_2025 = leer_archivo_excel(file_2025, 2025)
-        df_reales_2025["Fecha"] = pd.to_datetime(df_reales_2025["Fecha"], format="%Y-%b")
-
-        resumen = resumen.merge(df_reales_2025, on=["Cuenta", "Fecha"], how="left")
-        resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
+        resumen = resumen.merge(df_hist.groupby(["Cuenta", "Fecha"])["Real"].sum().reset_index(), on=["Cuenta", "Fecha"], how="left")
+        resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
         resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
+        resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
         resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
 
         st.success("Análisis generado correctamente ✅")
