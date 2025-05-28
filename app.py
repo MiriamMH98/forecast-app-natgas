@@ -159,12 +159,24 @@ if file_2022 and file_2023 and file_2024 and file_2025:
 
         df_presupuesto = leer_presupuesto(file_2025)
         bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
-        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
-            df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] =             df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
         resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
         resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
-        resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
+        resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
+    resumen = resumen.merge(
+        df_hist.groupby(["Cuenta", "Fecha"])["Real"].sum().reset_index(),
+        on=["Cuenta", "Fecha"],
+        how="left"
+    )
+    resumen = resumen.merge(
+        df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}),
+        on="Cuenta",
+        how="left"
+    )
+    resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
+    resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
+    resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
         resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
 
         st.success("Análisis generado correctamente ✅")
