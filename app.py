@@ -14,7 +14,7 @@ try:
 except:
     st.write("")
 
-cuentas_filtradas = [
+cuentas_permitidas = [
     '6454001002 UNIFORMES VENTA',
     '6454001003 CURSOS Y CAPACITACION VENTA',
     '6454001004 ADMINISTRACION DE VIATICOS VENTA',
