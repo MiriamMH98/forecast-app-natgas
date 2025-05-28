@@ -154,7 +154,7 @@ if file_2022 and file_2023 and file_2024 and file_2025:
         leer_archivo_excel(file_2025, 2025),
     ])
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
-    ultima_fecha_real = df_hist["Fecha"].max()
+    ultima_fecha_real = ultima_fecha_real = df_hist[df_hist["Real"] > 0]["Fecha"].max()
     pasos_forecast = 12 - ultima_fecha_real.month
 
     if pasos_forecast <= 0:
