@@ -4,3 +4,4 @@ matplotlib
 xlsxwriter
 statsmodels
 Pillow
+openpyxl
