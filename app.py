@@ -15,13 +15,11 @@ except:
     st.write("")
 
 cuentas_filtradas = [
-    '6454001001 SERVICIOS DE PERSONAL VENTA/MKT',
     '6454001002 UNIFORMES VENTA',
     '6454001003 CURSOS Y CAPACITACION VENTA',
     '6454001004 ADMINISTRACION DE VIATICOS VENTA',
     '6454001005 ASESORIAS PROFESIONALES VENTA',
     '6454001007 COMISIONES FUERZA DE VENTA INTERNA',
-    '6454001008 ADMINISTRACION APOYO MOVILIDAD',
     '6454001009 INCENTIVOS COMERCIALES EN ESPECIE',
     '6454001099 OTROS GASTOS DE PERSONAL VENTA',
     '6454002001 BONOS Y DESCUENTOS TALLERES DE CONVESION',
@@ -38,8 +36,6 @@ cuentas_filtradas = [
     '6454004006 ARTICULOS PROMOCIONALES',
     '6454004007 EVENTOS COMERCIALES',
     '6454004009 REFERIDOS',
-    '6454005001 VIATICOS / HOSPEDAJE VENTA',
-    '6454005002 VIATICOS / CONSUMOS VENTA',
     '6454006004 APOYO DE MOVILIDAD POR GESTION COMERCIAL',
     '6454007009 BONO COMERCIAL',
     '6454007031 CURSOS Y CAPACITACIONES',
@@ -50,7 +46,6 @@ cuentas_filtradas = [
     '6454007038 BOLETOS DE AVION',
     '6454007039 TAXIS Y TRANSPORTES FORANEOS',
     '6454007041 PEAJES/CASETAS',
-    '6454007042 COMPENSACION PRIMA VACACIONAL',
     '6454008099 OTROS GASTOS DE VENTA'
 ]
 
@@ -59,6 +54,7 @@ meses_es_en = {
     "may": "May", "jun": "Jun", "jul": "Jul", "ago": "Aug",
     "sep": "Sep", "oct": "Oct", "nov": "Nov", "dic": "Dec"
 }
+
 
 def leer_archivo_excel(uploaded_file, anio):
     encabezados = pd.read_excel(uploaded_file, nrows=8, header=None)
@@ -100,7 +96,7 @@ def leer_presupuesto(uploaded_file):
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Presupuesto": valor})
     return pd.DataFrame(datos)
 
-def forecast_sarima(df):
+def forecast_sarima(df, pasos_forecast, fecha_inicio_forecast):
     resultados = []
     for cuenta, datos in df.groupby("Cuenta"):
         ts = datos.set_index("Fecha").sort_index()["Real"].asfreq("MS").fillna(0)
@@ -108,10 +104,13 @@ def forecast_sarima(df):
             modelo = sm.tsa.statespace.SARIMAX(ts, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12),
                                                enforce_stationarity=False, enforce_invertibility=False)
             modelo_entrenado = modelo.fit(disp=False)
-            pred = modelo_entrenado.get_forecast(steps=12)
-            pred_df = pred.predicted_mean.reset_index()
-            pred_df.columns = ["Fecha", "Forecast"]
-            pred_df["Cuenta"] = cuenta
+            pred = modelo_entrenado.get_forecast(steps=pasos_forecast)
+            pred_df = pred.predicted_mean.reset_index(drop=True)
+            pred_df = pd.DataFrame({
+                "Fecha": pd.date_range(start=fecha_inicio_forecast, periods=pasos_forecast, freq="MS"),
+                "Forecast": pred_df.values,
+                "Cuenta": cuenta
+            })
             resultados.append(pred_df)
         except:
             continue
@@ -157,13 +156,19 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
     df_hist = df_hist[df_hist["Fecha"] <= "2025-04-30"]
 
-    df_forecast = forecast_sarima(df_hist)
+    ultima_fecha_real = df_hist["Fecha"].max()
+    pasos_forecast = 12 - ultima_fecha_real.month
+    st.info(f"Última fecha real: {ultima_fecha_real.strftime('%B %Y')}. Se generará forecast para los próximos {pasos_forecast} meses.")
+    
+    df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real + pd.offsets.MonthBegin(1))
     df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
 
     df_presupuesto = leer_presupuesto(file_2025)
 
+    # Ajuste específico para Bono Comercial
     bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
-    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] =         df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
+        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
 
     resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
     resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
