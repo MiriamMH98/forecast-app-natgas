@@ -4,6 +4,7 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from io import BytesIO
 from PIL import Image
+from datetime import datetime
 
 st.set_page_config(page_title="Forecast vs Presupuesto", layout="wide")
 
@@ -196,16 +197,16 @@ if file_2022 and file_2023 and file_2024 and file_2025:
 
         st.success("Análisis generado correctamente ✅")
         st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
-cuentas_disponibles = df_hist["Cuenta"].unique()
-cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_disponibles)
-df_plot = df_hist[df_hist["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
-df_fore = resumen[resumen["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
+        cuentas_disponibles = df_hist["Cuenta"].unique()
+        cuenta_sel = st.selectbox("Selecciona una cuenta para visualizar", cuentas_disponibles)
+        df_plot = df_hist[df_hist["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
+        df_fore = resumen[resumen["Cuenta"] == cuenta_sel].set_index("Fecha").sort_index()
 
-fig, ax = plt.subplots(figsize=(10, 4))
-df_plot["Real"].plot(ax=ax, label="Histórico", marker='o')
-df_fore["Forecast"].plot(ax=ax, label="Forecast 2025", marker='o')
-df_fore["Presupuesto"].plot(ax=ax, label="Presupuesto 2025", linestyle='--')
-ax.set_title(f"{cuenta_sel}")
-ax.legend()
-st.pyplot(fig)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        df_plot["Real"].plot(ax=ax, label="Histórico", marker='o')
+        df_fore["Forecast"].plot(ax=ax, label="Forecast 2025", marker='o')
+        df_fore["Presupuesto"].plot(ax=ax, label="Presupuesto 2025", linestyle='--')
+        ax.set_title(f"{cuenta_sel}")
+        ax.legend()
+        st.pyplot(fig)
 
