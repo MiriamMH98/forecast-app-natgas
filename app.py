@@ -104,7 +104,7 @@ def forecast_sarima(df, n_meses, fecha_inicio):
                                                enforce_stationarity=False, enforce_invertibility=False)
             modelo_entrenado = modelo.fit(disp=False)
             pred = modelo_entrenado.get_forecast(steps=n_meses)
-            pred_df = pred.predicted_mean.reset_index(drop=True)
+            pred_df = pred.predicted_mean.reset_index(drop=True).to_frame(name="Forecast")
             pred_df["Fecha"] = pd.date_range(start=fecha_inicio + pd.offsets.MonthBegin(1), periods=n_meses, freq="MS")
             pred_df["Cuenta"] = cuenta
             pred_df.rename(columns={0: "Forecast"}, inplace=True)
