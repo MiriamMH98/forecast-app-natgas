@@ -68,10 +68,10 @@ def leer_archivo_excel(uploaded_file, anio):
         cuenta = row[df.columns[0]]
         if cuenta not in cuentas_filtradas:
             continue
-        for mes in meses_es_en:
-            if ("Real", mes) in df.columns:
-                valor = row[("Real", mes)]
-                fecha = f"{anio}-{meses_es_en[mes]}"
+        for col in df.columns:
+            if col[0] == "Real" and col[1] in meses_es_en:
+                valor = row[col]
+                fecha = f"{anio}-{meses_es_en[col[1]]}"
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Real": valor})
     return pd.DataFrame(datos)
 
@@ -88,10 +88,10 @@ def leer_presupuesto(uploaded_file):
         cuenta = row[df.columns[0]]
         if cuenta not in cuentas_filtradas:
             continue
-        for mes in meses_es_en:
-            if ("Presupuesto", mes) in df.columns:
-                valor = row[("Presupuesto", mes)]
-                fecha = pd.to_datetime(f"2025-{meses_es_en[mes]}", format="%Y-%b")
+        for col in df.columns:
+            if col[0] == "Presupuesto" and col[1] in meses_es_en:
+                valor = row[col]
+                fecha = pd.to_datetime(f"2025-{meses_es_en[col[1]]}", format="%Y-%b")
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Presupuesto": valor})
     return pd.DataFrame(datos)
 
@@ -150,18 +150,18 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     df_hist = pd.concat([
         leer_archivo_excel(file_2022, 2022),
         leer_archivo_excel(file_2023, 2023),
-        leer_archivo_excel(file_2024, 2024)
+        leer_archivo_excel(file_2024, 2024),
+        leer_archivo_excel(file_2025, 2025),
     ])
     df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
-
     ultima_fecha_real = df_hist["Fecha"].max()
     pasos_forecast = 12 - ultima_fecha_real.month
-    st.info(f"Última fecha real: {ultima_fecha_real.strftime('%B %Y')}. Se generará forecast para los próximos {pasos_forecast} meses.")
 
     if pasos_forecast <= 0:
         st.warning("🚫 No hay meses futuros disponibles para predecir.")
         st.stop()
 
+    st.info(f"Última fecha real: {ultima_fecha_real.strftime('%B %Y')}. Se generará forecast para los próximos {pasos_forecast} meses.")
     df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real)
     df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
 
