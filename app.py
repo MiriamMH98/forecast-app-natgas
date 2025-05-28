@@ -66,12 +66,12 @@ def leer_archivo_excel(uploaded_file, anio):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
-        if cuenta not in cuentas_filtradas:
+        if cuenta not in cuentas_permitidas:
             continue
-        for col in df.columns:
-            if col[0] == "Real" and col[1] in meses_es_en:
-                valor = row[col]
-                fecha = f"{anio}-{meses_es_en[col[1]]}"
+        for mes in meses_es_en:
+            if ("Real", mes) in df.columns:
+                valor = row[("Real", mes)]
+                fecha = pd.to_datetime(f"{anio}-{meses_es_en[mes]}", format="%Y-%b")
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Real": valor})
     return pd.DataFrame(datos)
 
@@ -86,16 +86,16 @@ def leer_presupuesto(uploaded_file):
     datos = []
     for _, row in df.iterrows():
         cuenta = row[df.columns[0]]
-        if cuenta not in cuentas_filtradas:
+        if cuenta not in cuentas_permitidas:
             continue
-        for col in df.columns:
-            if col[0] == "Presupuesto" and col[1] in meses_es_en:
-                valor = row[col]
-                fecha = pd.to_datetime(f"2025-{meses_es_en[col[1]]}", format="%Y-%b")
+        for mes in meses_es_en:
+            if ("Presupuesto", mes) in df.columns:
+                valor = row[("Presupuesto", mes)]
+                fecha = pd.to_datetime(f"2025-{meses_es_en[mes]}", format="%Y-%b")
                 datos.append({"Cuenta": cuenta, "Fecha": fecha, "Presupuesto": valor})
     return pd.DataFrame(datos)
 
-def forecast_sarima(df, n_meses, fecha_inicio):
+def forecast_sarima(df, pasos, ultima_fecha_real):
     resultados = []
     for cuenta, datos in df.groupby("Cuenta"):
         ts = datos.set_index("Fecha").sort_index()["Real"].asfreq("MS").fillna(0)
@@ -103,16 +103,13 @@ def forecast_sarima(df, n_meses, fecha_inicio):
             modelo = sm.tsa.statespace.SARIMAX(ts, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12),
                                                enforce_stationarity=False, enforce_invertibility=False)
             modelo_entrenado = modelo.fit(disp=False)
-            pred = modelo_entrenado.get_forecast(steps=n_meses)
+            pred = modelo_entrenado.get_forecast(steps=pasos)
             pred_df = pred.predicted_mean.reset_index(drop=True).to_frame(name="Forecast")
-            pred_df["Fecha"] = pd.date_range(start=fecha_inicio + pd.offsets.MonthBegin(1), periods=n_meses, freq="MS")
+            pred_df["Fecha"] = pd.date_range(start=ultima_fecha_real + pd.offsets.MonthBegin(), periods=pasos, freq='MS')
             pred_df["Cuenta"] = cuenta
-            pred_df.rename(columns={0: "Forecast"}, inplace=True)
             resultados.append(pred_df)
         except:
             continue
-    if not resultados:
-        return pd.DataFrame()
     return pd.concat(resultados)
 
 def clasificar_alerta(row, tolerancia=0.3):
@@ -126,6 +123,17 @@ def clasificar_alerta(row, tolerancia=0.3):
         return "🔵 Muy por debajo"
     else:
         return "🟢 En rango"
+
+def clasificar_real_vs_forecast(row, tolerancia=0.2):
+    if pd.isnull(row["Real"]) or pd.isnull(row["Forecast"]):
+        return "Sin datos"
+    diff_pct = (row["Real"] - row["Forecast"]) / row["Forecast"]
+    if diff_pct > tolerancia:
+        return "🔴 Real > Forecast"
+    elif diff_pct < -tolerancia:
+        return "🔵 Real < Forecast"
+    else:
+        return "🟢 Dentro del rango"
 
 def generar_excel(df):
     output = BytesIO()
@@ -150,27 +158,30 @@ if file_2022 and file_2023 and file_2024 and file_2025:
     df_hist = pd.concat([
         leer_archivo_excel(file_2022, 2022),
         leer_archivo_excel(file_2023, 2023),
-        leer_archivo_excel(file_2024, 2024),
-        leer_archivo_excel(file_2025, 2025),
+        leer_archivo_excel(file_2024, 2024)
     ])
-    df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"], format="%Y-%b")
-    ultima_fecha_real = ultima_fecha_real = df_hist[df_hist["Real"] > 0]["Fecha"].max()
+    df_hist["Fecha"] = pd.to_datetime(df_hist["Fecha"])
+
+    ultima_fecha_real = df_hist["Fecha"].max()
     pasos_forecast = 12 - ultima_fecha_real.month
-
-    if pasos_forecast <= 0:
-        st.warning("🚫 No hay meses futuros disponibles para predecir.")
-        st.stop()
-
     st.info(f"Última fecha real: {ultima_fecha_real.strftime('%B %Y')}. Se generará forecast para los próximos {pasos_forecast} meses.")
+
     df_forecast = forecast_sarima(df_hist, pasos_forecast, ultima_fecha_real)
     df_forecast["Forecast"] = df_forecast["Forecast"].clip(lower=0)
 
     df_presupuesto = leer_presupuesto(file_2025)
 
+    bono_max = df_presupuesto[df_presupuesto['Cuenta'] == '6454007009 BONO COMERCIAL']['Presupuesto'].mean()
+    df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'] = \
+        df_forecast.loc[df_forecast['Cuenta'] == '6454007009 BONO COMERCIAL', 'Forecast'].clip(upper=bono_max)
+
     resumen = pd.merge(df_forecast, df_presupuesto, on=["Cuenta", "Fecha"], how="left")
+    resumen = pd.merge(resumen, df_hist, on=["Cuenta", "Fecha"], how="left")
     resumen = resumen.merge(df_hist.groupby("Cuenta")["Real"].mean().reset_index().rename(columns={"Real": "Media_Historica_Mensual"}), on="Cuenta", how="left")
     resumen["Comparación_vs_Histórico"] = resumen["Forecast"] - resumen["Media_Historica_Mensual"]
+    resumen["Comparación_Real_vs_Forecast"] = resumen["Real"] - resumen["Forecast"]
     resumen["Alerta"] = resumen.apply(clasificar_alerta, axis=1)
+    resumen["Alerta_Real_vs_Forecast"] = resumen.apply(clasificar_real_vs_forecast, axis=1)
 
     st.success("Análisis generado correctamente ✅")
     st.download_button("📥 Descargar Excel", data=generar_excel(resumen), file_name="forecast_validado.xlsx")
